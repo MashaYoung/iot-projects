@@ -34,11 +34,11 @@ BUTTON_ENABLED = os.getenv("BUTTON_ENABLED", "1") == "1"
 
 
 def is_any_key_pressed():
-    """Неблокирующая проверка нажатия клавиши (роль кнопки BOOT)."""
+    # проверка клавиши без блокировки цикла
     if sys.platform.startswith("win"):
         return _win_nonblocking_key()
     else:
-        # POSIX (Linux/macOS): проверяем готовность stdin с таймаутом 0.
+        # на линуксе/маке ждём stdin с таймаутом 0
         if select.select([sys.stdin], [], [], 0)[0]:
             sys.stdin.readline()
             return True
@@ -46,7 +46,7 @@ def is_any_key_pressed():
 
 
 def _win_nonblocking_key():
-    """Windows-вариант неблокирующего чтения клавиши."""
+    # для винды: kbhit() не блокирует
     try:
         import msvcrt
         return msvcrt.kbhit()
@@ -55,7 +55,7 @@ def _win_nonblocking_key():
 
 
 def print_alarm_message():
-    """Печатает подробное сообщение об аварии."""
+    # вывести, что именно нарушено
     print()
     print("!!! ВНИМАНИЕ: ОШИБКА !!!")
     if t < TEMP_MIN or t > TEMP_MAX:
@@ -66,7 +66,7 @@ def print_alarm_message():
 
 
 def setup():
-    """Инициализация прибора."""
+    # старт и напоминание о лимитах
     print('START!')
     print(f"=== Климат-монитор склада ===")
     print(f"Лимиты : T {TEMP_MIN:.1f}..{TEMP_MAX:.1f} C, "
@@ -74,14 +74,8 @@ def setup():
 
 
 def read_sensor():
-    """Читает показания датчика.
-
-    Здесь это имитация: значения случайно «плавают», и влажность в среднем
-    растёт, чтобы авария срабатывала за разумное время (для демонстрации).
-    В реальной системе на ESP32 тут читался бы настоящий DHT22 с пина D15:
-        # t = dht.readTemperature()
-        # h = dht.readHumidity()
-    """
+    # имитация датчика: данные «плавают», влажность тянем вверх,
+    # чтобы доходить до аварии, а не болтаться у 45 всё время
     global t, h
     t = t + random.uniform(-1.0, 1.0)
     # Медленный рост влажности + небольшое блуждание: стабильно уводим
@@ -90,7 +84,7 @@ def read_sensor():
 
 
 def check_limits():
-    """Сверяет показания с лимитами и взводит тревогу."""
+    # если что-то вылезло за лимит — включаем тревогу
     global alarm
     if t < TEMP_MIN or t > TEMP_MAX or h > HUMIDITY_MAX:
         alarm = True
@@ -98,18 +92,18 @@ def check_limits():
 
 
 def update_leds():
-    """Показывает светодиод, но только когда он меняет состояние."""
     global led
     text = "Красный горит" if alarm else "Зеленый горит"
+    # печатаем только когда состояние поменялось, а не каждый тик
     if text != led:
         print(f"[LED] {text}")
         led = text
 
 
 def handle_button():
-    """Кнопка BOOT: по нажатию дублирует текущее состояние прибора."""
+    # кнопка BOOT: показать текущее состояние
     if not BUTTON_ENABLED:
-        return  # в Docker кнопки нет — пропускаем опрос
+        return  # в докере кнопки нет
     if is_any_key_pressed():
         if alarm:
             print_alarm_message()
@@ -118,7 +112,7 @@ def handle_button():
 
 
 def superloop():
-    """Главный цикл прибора (суперцикл с базовым шагом 100 мс)."""
+    # главный цикл: читаем датчик, проверяем, обновляем светодиод
     global count
     while True:
         handle_button()
