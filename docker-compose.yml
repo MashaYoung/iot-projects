@@ -1,0 +1,12 @@
+services:
+  broker:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+
+  node:
+    build: ./mqtt-light-control
+    depends_on:
+      - broker
+    environment:
+      MQTT_HOST: broker
